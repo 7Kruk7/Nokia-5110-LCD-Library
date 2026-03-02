@@ -1,7 +1,7 @@
 /**
  * @file Nokia5110.c
- * @brief Implementacja biblioteki wyświetlacza Nokia 5110 dla Kinetis KL05Z4
- * @author Adaptacja dla KL05Z4 na podstawie biblioteki Nitin Sharma (Arduino)
+ * @brief Nokia 5110 display library implementation for Kinetis KL05Z4
+ * @author Adaptation for KL05Z4 based on Nitin Sharma's library (Arduino)
  * @version 1.0
  */
 
@@ -21,7 +21,7 @@ static uint32_t g_clk_mask;
 
 
 static const uint8_t ASCII_FONT[][5] = {
-    {0x00, 0x00, 0x00, 0x00, 0x00}, // 0x20 (spacja)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 0x20 (space)
     {0x00, 0x00, 0x5F, 0x00, 0x00}, // 0x21 !
     {0x00, 0x07, 0x00, 0x07, 0x00}, // 0x22 "
     {0x14, 0x7F, 0x14, 0x7F, 0x14}, // 0x23 #
@@ -116,62 +116,62 @@ static const uint8_t ASCII_FONT[][5] = {
     {0x00, 0x00, 0x7F, 0x00, 0x00}, // 0x7C |
     {0x00, 0x41, 0x36, 0x08, 0x00}, // 0x7D }
     {0x10, 0x08, 0x08, 0x10, 0x08}, // 0x7E ~
-    {0x78, 0x46, 0x41, 0x46, 0x78}  // 0x7F (strzałka)
+    {0x78, 0x46, 0x41, 0x46, 0x78}  // 0x7F (arrow)
 };
 
 /**
- * @brief Ustawienie pinu GPIO na wysoki stan
+ * @brief Set GPIO pin to high
  */
 static inline void GPIO_SetPin(GPIO_Type *port, uint32_t mask) {
     port->PSOR = mask;
 }
 
 /**
- * @brief Ustawienie pinu GPIO na niski stan
+ * @brief Set GPIO pin to low
  */
 static inline void GPIO_ClearPin(GPIO_Type *port, uint32_t mask) {
     port->PCOR = mask;
 }
 
 /**
- * @brief Wysłanie pojedynczego bajtu przez interfejs SPI (bit-banging)
- * @param data Bajt do wysłania (MSB first)
+ * @brief Send single byte via SPI interface (bit-banging)
+ * @param data Byte to send (MSB first)
  */
 static void SPI_SendByte(uint8_t data) {
     for (int i = 7; i >= 0; i--) {
-        // Ustaw dane
+        // Set data
         if (data & (1 << i)) {
             GPIO_SetPin(g_din_port, g_din_mask);
         } else {
             GPIO_ClearPin(g_din_port, g_din_mask);
         }
         
-        // Zbocze narastające CLK
+        // CLK rising edge
         GPIO_SetPin(g_clk_port, g_clk_mask);
         
-        // Krótkie opóźnienie
+        // Short delay
         __NOP(); __NOP(); __NOP(); __NOP();
         
-        // Zbocze opadające CLK
+        // CLK falling edge
         GPIO_ClearPin(g_clk_port, g_clk_mask);
     }
 }
 
 /**
- * @brief Wysłanie komendy do wyświetlacza
- * @param cmd Komenda
+ * @brief Send command to display
+ * @param cmd Command
  */
 static void LCD_WriteCommand(uint8_t cmd) {
-    GPIO_ClearPin(g_dc_port, g_dc_mask);   // DC = 0 (komenda)
-    GPIO_ClearPin(g_ce_port, g_ce_mask);   // CE = 0 (aktywny)
+    GPIO_ClearPin(g_dc_port, g_dc_mask);   // DC = 0 (command)
+    GPIO_ClearPin(g_ce_port, g_ce_mask);   // CE = 0 (active)
     SPI_SendByte(cmd);
-    GPIO_SetPin(g_ce_port, g_ce_mask);     // CE = 1 (nieaktywny)
+    GPIO_SetPin(g_ce_port, g_ce_mask);     // CE = 1 (inactive)
 }
 
 
 void Nokia5110_DelayUs(uint32_t us) {
-    // Przybliżone opóźnienie dla zegara ~41.94 MHz
-    // Każda iteracja to około 6-10 cykli
+    // Approximate delay for ~41.94 MHz clock
+    // Each iteration is about 6-10 cycles
     volatile uint32_t count = us * 7;
     while (count--) {
         __NOP();
@@ -186,7 +186,7 @@ void Nokia5110_DelayMs(uint32_t ms) {
 
 
 void Nokia5110_Init(void) {
-    // Domyślna konfiguracja pinów
+    // Default pin configuration
     Nokia5110_PinConfig config = {
         .rst_port = PTB,  .rst_pin = LCD_RST_PIN,
         .ce_port = PTB,   .ce_pin = LCD_CE_PIN,
@@ -199,7 +199,7 @@ void Nokia5110_Init(void) {
 }
 
 void Nokia5110_InitCustom(Nokia5110_PinConfig *config) {
-    // Zapisz konfigurację globalnie
+    // Store configuration globally
     g_rst_port = config->rst_port;
     g_rst_mask = (1UL << config->rst_pin);
     g_ce_port = config->ce_port;
@@ -211,10 +211,10 @@ void Nokia5110_InitCustom(Nokia5110_PinConfig *config) {
     g_clk_port = config->clk_port;
     g_clk_mask = (1UL << config->clk_pin);
     
-    // Włącz zegary dla portów
+    // Enable clocks for ports
     SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTB_MASK;
     
-    // Konfiguracja pinów jako GPIO
+    // Configure pins as GPIO
     // RST
     if (config->rst_port == PTA) {
         PORTA->PCR[config->rst_pin] = PORT_PCR_MUX(1);
@@ -250,19 +250,19 @@ void Nokia5110_InitCustom(Nokia5110_PinConfig *config) {
         PORTB->PCR[config->clk_pin] = PORT_PCR_MUX(1);
     }
     
-    // Konfiguracja kierunku pinów jako wyjścia
+    // Configure pin direction as outputs
     g_rst_port->PDDR |= g_rst_mask;
     g_ce_port->PDDR |= g_ce_mask;
     g_dc_port->PDDR |= g_dc_mask;
     g_din_port->PDDR |= g_din_mask;
     g_clk_port->PDDR |= g_clk_mask;
     
-    // Stany początkowe
-    GPIO_SetPin(g_ce_port, g_ce_mask);     // CE = 1 (nieaktywny)
+    // Initial states
+    GPIO_SetPin(g_ce_port, g_ce_mask);     // CE = 1 (inactive)
     GPIO_ClearPin(g_clk_port, g_clk_mask); // CLK = 0
     GPIO_SetPin(g_rst_port, g_rst_mask);   // RST = 1 (inactive)
     
-    // delay bo bez tego gowno dziala
+    // Delay required, otherwise display does not work properly
     Nokia5110_DelayMs(100);
     
     GPIO_ClearPin(g_rst_port, g_rst_mask); // RST = 0 (active)
@@ -270,29 +270,29 @@ void Nokia5110_InitCustom(Nokia5110_PinConfig *config) {
     GPIO_SetPin(g_rst_port, g_rst_mask);   // RST = 1 (inactive)
     Nokia5110_DelayMs(50);
     
-    // Inicjalizacja sterownika PCD8544
-    LCD_WriteCommand(PCD8544_FUNCTIONSET | PCD8544_EXTINSTRUCTION); // Tryb rozszerzony
+    // PCD8544 driver initialization
+    LCD_WriteCommand(PCD8544_FUNCTIONSET | PCD8544_EXTINSTRUCTION); // Extended mode
     Nokia5110_DelayMs(1);
-    LCD_WriteCommand(PCD8544_SETVOP | 0x40);    // Kontrast (0x40 = 64, lekko wyższy)
+    LCD_WriteCommand(PCD8544_SETVOP | 0x40);    // Contrast (0x40 = 64, slightly higher)
     Nokia5110_DelayMs(1);
-    LCD_WriteCommand(PCD8544_SETTEMP | 0x02);   // Współczynnik temperaturowy = 2
+    LCD_WriteCommand(PCD8544_SETTEMP | 0x02);   // Temperature coefficient = 2
     Nokia5110_DelayMs(1);
     LCD_WriteCommand(PCD8544_SETBIAS | 0x03);   // Bias 1:48
     Nokia5110_DelayMs(1);
-    LCD_WriteCommand(PCD8544_FUNCTIONSET);      // Tryb podstawowy
+    LCD_WriteCommand(PCD8544_FUNCTIONSET);      // Basic mode
     Nokia5110_DelayMs(1);
-    LCD_WriteCommand(PCD8544_DISPLAYCONTROL | PCD8544_DISPLAYNORMAL); // Normalne wyświetlanie
+    LCD_WriteCommand(PCD8544_DISPLAYCONTROL | PCD8544_DISPLAYNORMAL); // Normal display
     Nokia5110_DelayMs(1);
     
-    // Wyczyść ekran
+    // Clear screen
     Nokia5110_Clear();
 }
 
 void Nokia5110_WriteData(uint8_t data) {
-    GPIO_SetPin(g_dc_port, g_dc_mask);     // DC = 1 (dane)
-    GPIO_ClearPin(g_ce_port, g_ce_mask);   // CE = 0 (aktywny)
+    GPIO_SetPin(g_dc_port, g_dc_mask);     // DC = 1 (data)
+    GPIO_ClearPin(g_ce_port, g_ce_mask);   // CE = 0 (active)
     SPI_SendByte(data);
-    GPIO_SetPin(g_ce_port, g_ce_mask);     // CE = 1 (nieaktywny)
+    GPIO_SetPin(g_ce_port, g_ce_mask);     // CE = 1 (inactive)
 }
 
 void Nokia5110_Clear(void) {
@@ -304,23 +304,23 @@ void Nokia5110_Clear(void) {
 }
 
 void Nokia5110_SetXY(uint8_t x, uint8_t y) {
-    LCD_WriteCommand(PCD8544_SETXADDR | (x & 0x7F));  // Kolumna (0-83)
-    LCD_WriteCommand(PCD8544_SETYADDR | (y & 0x07));  // Wiersz (0-5)
+    LCD_WriteCommand(PCD8544_SETXADDR | (x & 0x7F));  // Column (0-83)
+    LCD_WriteCommand(PCD8544_SETYADDR | (y & 0x07));  // Row (0-5)
 }
 
 
 void Nokia5110_WriteChar(char c) {
-    // Sprawdź zakres znaków
+    // Check character range
     if (c < 0x20 || c > 0x7F) {
-        c = 0x20; // Zamień nieobsługiwane znaki na spację
+        c = 0x20; // Replace unsupported characters with space
     }
     
-    // Wyślij 5 kolumn znaku
+    // Send 5 columns of character
     for (int i = 0; i < 5; i++) {
         Nokia5110_WriteData(ASCII_FONT[c - 0x20][i]);
     }
     
-    // Wyślij odstęp między znakami (1 piksel)
+    // Send spacing between characters (1 pixel)
     Nokia5110_WriteData(0x00);
 }
 
